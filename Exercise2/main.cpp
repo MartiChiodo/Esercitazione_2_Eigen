@@ -5,14 +5,39 @@ using namespace std;
 using namespace Eigen;
 
 
-double errore_rel_PALU(MatrixXd& A, VectorXd& b, VectorXd& xSOL, VectorXd& x){
-    x = A.lu().solve(b);
+double errore_rel_PALU( const MatrixXd& A, const VectorXd& b, VectorXd& xSOL, VectorXd& x){
+
+    //fattorizzo la matrice A
+    PartialPivLU<MatrixXd>lu(A);
+    MatrixXd L = lu.matrixLU().triangularView<StrictlyLower>();
+    MatrixXd U = lu.matrixLU().triangularView<Upper>();
+    MatrixXd P = lu.permutationP();
+
+    //devo aggiungere la matrice identità a L
+    MatrixXd I = MatrixXd::Identity(A.rows(), A.cols());
+    L += I;
+
+    //risolvo i due sistemi triangolari Ly = Pb e Ux = y
+    VectorXd y = L.triangularView<Lower>().solve(P*b);
+    x = U.triangularView<Upper>().solve(y);
+
+    //x = A.lu().solve(b); --> questa funzione comprende già in sé la risoluzione del sistema tramite fattorizzazione PA=LU
     double err_rel  = (x-xSOL).norm()/xSOL.norm(); //la funzione norm calcola la norma euclidea
     return err_rel;
 }
 
-double errore_rel_QR(MatrixXd &A, VectorXd &b, VectorXd &xSOL, VectorXd& x){
-    x = A.householderQr().solve(b);
+double errore_rel_QR(const MatrixXd &A, const VectorXd &b, VectorXd &xSOL, VectorXd& x){
+
+    //fattorizzo la matrice A
+    HouseholderQR<MatrixXd>qr(A);
+    MatrixXd Q = qr.householderQ();
+    MatrixXd R = qr.matrixQR().triangularView<Upper>();
+
+    //risolvo i due sistemi triangolari y = Q'*b e Rx = y
+    VectorXd y = Q.transpose() * b;
+    x = R.triangularView<Upper>().solve(y);
+
+    //x = A.householderQr().solve(b); --> questa funzione comprende già in sé la risoluzione del sistema tramite fattorizzazione A = QR
     double err_rel  = (x-xSOL).norm()/xSOL.norm(); //la funzione norm calcola la norma euclidea
     return err_rel;
 }
